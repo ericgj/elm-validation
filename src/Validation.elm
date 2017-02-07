@@ -1,7 +1,7 @@
 module Validation 
   exposing 
     ( ValidationResult(..)
-    , map, mapMessage, andThen, andMap, succeed, initial
+    , map, mapMessage, andThen, andMap, valid, initial
     , withDefault
     , fromMaybeInitial, fromMaybe, toMaybe
     , fromResultInitial, fromResult
@@ -45,8 +45,8 @@ type alias Model =
 In your view, 
   
   1. pipe input through a validation function and into your update;
-  2. set the value to either the validated or the last-entered input;
-  3. and display any error message below the input element.
+  2. set the value to either the validated or the last-entered input; and
+  3. display any error message below the input element.
 
 ```
 view : Model -> Html Msg
@@ -67,7 +67,7 @@ view form =
 (Note: often you will want an `onBlur` event as well, but this is left as an
 exercise for the reader.)
 
-Your validation functions are provided as `a -> Result String a`:
+Your validation functions are defined as `a -> Result String a`:
 
 ``` elm
 isRequired : String -> Result String String
@@ -90,7 +90,7 @@ form model is `Form`, and your underlying validated model is `Model`):
 ```elm
 validateForm : Form -> ValidationResult Model
 validateForm form =
-    Validation.succeed Model
+    Validation.valid Model
       |> Validation.andMap form.field1
       |> Validation.andMap form.field2
       --...    
@@ -102,7 +102,7 @@ and package it into an http call, etc.
 Note that this library does not currently support accumulating validation errors
 (e.g. multiple validations). The error message type is fixed as `String`. So 
 the `andMap` example above is not intended to give you a list of errors in the
-`Fail` case. Instead, it simply returns the first `Initial` or `Fail` of the
+`Invalid` case. Instead, it simply returns the first `Initial` or `Invalid` of the
 applied `ValidationResult`s.
 
 
@@ -113,7 +113,7 @@ applied `ValidationResult`s.
 
 @docs ValidationResult
 @docs validate
-@docs succeed
+@docs valid
 @docs initial
 @docs map
 @docs andThen
@@ -141,22 +141,22 @@ applied `ValidationResult`s.
 
 {-| A wrapped value has three states:
   - `Initial` - No input yet.
-  - `Succeed` - Input is valid, and here is the valid (parsed) data.
-  - `Fail` - Input is invalid, and here is the error message and your input.
+  - `Valid`   - Input is valid, and here is the valid (parsed) data.
+  - `Invalid` - Input is invalid, and here is the error message and your last input.
 -}
 type ValidationResult a
   = Initial 
-  | Succeed a
-  | Fail String String
+  | Valid a
+  | Invalid String String
 
-{-| Map a function into the `Succeed` value.
+{-| Map a function into the `Valid` value.
 -}
 map : (a -> b) -> ValidationResult a -> ValidationResult b
 map fn r =
   case r of
     Initial -> Initial
-    Fail msg input -> Fail msg input
-    Succeed a -> Succeed (fn a)
+    Invalid msg input -> Invalid msg input
+    Valid a -> Valid (fn a)
 
 {-| Map over the error message value, producing a new ValidationResult
 -}
@@ -164,8 +164,8 @@ mapMessage : (String -> String) -> ValidationResult a -> ValidationResult a
 mapMessage fn r =
   case r of
     Initial -> Initial
-    Succeed a -> Succeed a
-    Fail msg input -> Fail (fn msg) input
+    Valid a -> Valid a
+    Invalid msg input -> Invalid (fn msg) input
 
 {-| Chain a function returning ValidationResult onto a ValidationResult
 -}
@@ -173,8 +173,8 @@ andThen : (a -> ValidationResult b) -> ValidationResult a -> ValidationResult b
 andThen fn r =
   case r of
     Initial -> Initial
-    Fail msg input -> Fail msg input
-    Succeed a -> fn a
+    Invalid msg input -> Invalid msg input
+    Valid a -> fn a
 
 
 {-| 
@@ -187,15 +187,15 @@ andMap : ValidationResult a -> ValidationResult (a -> b) -> ValidationResult b
 andMap r fn = 
   case r of
     Initial -> Initial
-    Fail msg input -> Fail msg input
-    Succeed a -> r |> andThen (\r_ -> fn |> andThen (\f_ -> Succeed (f_ r_)))
+    Invalid msg input -> Invalid msg input
+    Valid a -> r |> andThen (\r_ -> fn |> andThen (\f_ -> Valid (f_ r_)))
 
 
-{-| Put a value into a ValidationResult.
+{-| Put a valid value into a ValidationResult.
 -}
-succeed : a -> ValidationResult a
-succeed a = 
-    Succeed a
+valid : a -> ValidationResult a
+valid a = 
+    Valid a
 
 
 {-| Initialize a ValidationResult to the empty case (no input).
@@ -204,113 +204,126 @@ initial : ValidationResult a
 initial = Initial
 
 
-{-| Extract the `Succeed` value, or the given default
+{-| Extract the `Valid` value, or the given default
 -}
 withDefault : a -> ValidationResult a -> a
 withDefault a r =
   case r of
     Initial -> a
-    Fail msg input -> a
-    Succeed a_ -> a_
+    Invalid msg input -> a
+    Valid a_ -> a_
 
-{-| Convert a `Maybe` into either `Initial` (if `Nothing`) or `Succeed` (if `Just`)
+
+{-| Convert a `Maybe` into either `Initial` (if `Nothing`) or `Valid` (if `Just`)
 -}
 fromMaybeInitial : Maybe a -> ValidationResult a
 fromMaybeInitial m =
   case m of
     Nothing -> Initial
-    Just a -> Succeed a
+    Just a -> Valid a
 
-{-| Convert a `Maybe` into either `Fail`, with given message and input, or `Succeed`.
+
+{-| Convert a `Maybe` into either `Invalid`, with given message and input, or `Valid`.
 -}
 fromMaybe : String -> String -> Maybe a -> ValidationResult a
 fromMaybe msg input m =
   case m of
-    Nothing -> Fail msg input
-    Just a -> Succeed a
+    Nothing -> Invalid msg input
+    Just a -> Valid a
 
 
-{-| Convert a `ValidationResult` to a `Maybe`. Note `Fail` state is dropped.
+{-| Convert a `ValidationResult` to a `Maybe`. Note `Invalid` state is dropped.
 -}
 toMaybe : ValidationResult a -> Maybe a
 toMaybe r =
   case r of
     Initial -> Nothing
-    Fail msg input -> Nothing
-    Succeed a -> Just a
+    Invalid msg input -> Nothing
+    Valid a -> Just a
 
 
-{-| Convert a `Result` into either `Initial` (if `Err`) or `Succeed` (if `Ok`).
+{-| Convert a `Result` into either `Initial` (if `Err`) or `Valid` (if `Ok`).
     Note `Err` state is dropped.
 -}
 fromResultInitial : Result e a -> ValidationResult a
 fromResultInitial m =
   case m of
-    Ok a -> Succeed a
+    Ok a -> Valid a
     Err e -> Initial
 
 
 {-| 
-Convert a `Result` into either `Fail`, using given function mapping `Err`
-value to the error message (`String`), and the given input string; or `Succeed`.
+Convert a `Result` into either `Invalid`, using given function mapping the `Err`
+value to the error message (`String`), and the given input string; or `Valid`.
+
+Note: this function may be useful for unusual scenarios where you have a
+Result already and you need to convert it. More typically you would pass
+a Result-returning function to `validate` &mdash; which calls `fromResult`
+internally.
 -}
 fromResult : (e -> String) -> String -> Result e a -> ValidationResult a
 fromResult fn input m =
   case m of
-    Ok a -> Succeed a
-    Err e -> Fail (fn e) input
+    Ok a -> Valid a
+    Err e -> Invalid (fn e) input
+
 
 {-| 
-Force the ValidationResult into a String:
+Convert the ValidationResult to a String representation:
 
-  - if Succeed, convert the value to a string with the given function;
-  - if Fail, return the input (unvalidated) string;
+  - if Valid, convert the value to a string with the given function;
+  - if Invalid, return the input (unvalidated) string;
   - if Initial, return the empty string ("").
     
 Note: this is mainly useful as a convenience function for setting the `value`
-of an `Html.input` element.
+attribute of an `Html.input` element.
 -}
 toString : (a -> String) -> ValidationResult a -> String 
 toString fn r =
   case r of
-    Succeed a -> fn a
-    Fail _ last -> last
+    Valid a -> fn a
+    Invalid _ last -> last
     Initial -> ""
 
-{-|  Extract the error message of a `Fail`, or Nothing
+
+{-|  Extract the error message of an `Invalid`, or Nothing
 -}
 message : ValidationResult a -> Maybe String
 message r =
   case r of
     Initial -> Nothing
-    Succeed _ -> Nothing
-    Fail msg _ -> Just msg
+    Valid _ -> Nothing
+    Invalid msg _ -> Just msg
 
 
-{-| Return True if and only if `Succeed`.
+{-| 
+Return True if and only if `Valid`. Note `Initial` -> `False`
+(`Initial` is not valid).
 -}
 isValid : ValidationResult a -> Bool
 isValid r =
   case r of
-    Succeed _ -> True
+    Valid _ -> True
     _ -> False
 
 
-{-| Return True if and only if `Fail`. Note `Initial` -> `False` (not invalid)
+{-| 
+Return True if and only if `Invalid`. Note `Initial` -> `False` 
+(`Initial` is not invalid).
 -}
 isInvalid : ValidationResult a -> Bool
 isInvalid r =
   case r of
     Initial -> False
-    Succeed _ -> False
-    Fail msg last -> True 
+    Valid _ -> False
+    Invalid msg last -> True 
 
 
 {-| 
 Run a validation function on an input string, to create a ValidationResult.
 
 Note the validation function you provide is `String -> Result String a`, where
-`a` is the type of the valid (Succeed) value.
+`a` is the type of the valid value.
 
 So a validation function for "integer less than 10" looks like:
 
@@ -325,6 +338,5 @@ lessThanTen input =
 validate : (String -> Result String a) -> String -> ValidationResult a
 validate fn input =
   fn input |> fromResult identity input
-
 
 
