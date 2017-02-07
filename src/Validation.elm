@@ -69,11 +69,11 @@ view form =
           , value 
               (form.input 
                   |> Validation.toString identity
-              )  -- (1.)
+              )  -- (2.)
           , onInput 
               (Validation.validate isRequired 
                   >> SetInput
-              )  -- (2.)
+              )  -- (1.)
           ] []
       , div 
           [ class "error" ]
