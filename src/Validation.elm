@@ -64,20 +64,23 @@ view : Model -> Html Msg
 view form =
     -- ...
     div []
-      [ input
+      [ input 
           [ type_ "text"
-          , value
-              form.input
-                  |> Validation.toString identity  -- (1.)
-          , onInput
-              (Validation.validate isRequired >> SetInput)  -- (2.)
+          , value 
+              (form.input 
+                  |> Validation.toString identity
+              )  -- (1.)
+          , onInput 
+              (Validation.validate isRequired 
+                  >> SetInput
+              )  -- (2.)
           ] []
-      , div
+      , div 
           [ class "error" ]
-          [ text
-              (Validation.message form.input
+          [ text 
+              (Validation.message form.input 
                   |> Maybe.withDefault ""
-              )                              -- (3.)
+              )  -- (3.)
           ]
       ]
 ```
@@ -89,7 +92,7 @@ Your validation functions are defined as `a -> Result String a`:
 ``` elm
 isRequired : String -> Result String String
 isRequired raw =
-  if String.length < 1 then
+  if String.length raw < 1 then
     Err "Required"
   else
     Ok raw
@@ -419,3 +422,4 @@ lessThanTen input =
 validate : (String -> Result String a) -> String -> ValidationResult a
 validate fn input =
     fn input |> fromResult identity input
+
