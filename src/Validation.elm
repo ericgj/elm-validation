@@ -171,22 +171,22 @@ applied `ValidationResult`s.
   - `Invalid` - Input is invalid, and here is the error message and your last input.
 
 -}
-type ValidationResult a
+type ValidationResult val
     = Initial
-    | Valid a
+    | Valid val
     | Invalid String String
 
 
 {-| Map a function into the `Valid` value.
 -}
 map : (a -> b) -> ValidationResult a -> ValidationResult b
-map fn r =
-    case r of
+map fn validation =
+    case validation of
         Initial ->
             Initial
 
-        Valid a ->
-            Valid (fn a)
+        Valid val ->
+            Valid (fn val)
 
         Invalid msg input ->
             Invalid msg input
@@ -194,26 +194,26 @@ map fn r =
 
 {-| Map over the error message value, producing a new ValidationResult
 -}
-mapMessage : (String -> String) -> ValidationResult a -> ValidationResult a
-mapMessage fn r =
-    case r of
+mapMessage : (String -> String) -> ValidationResult val -> ValidationResult val
+mapMessage fn validation =
+    case validation of
         Invalid msg input ->
             Invalid (fn msg) input
 
         _ ->
-            r
+            validation
 
 
 {-| Chain a function returning ValidationResult onto a ValidationResult
 -}
 andThen : (a -> ValidationResult b) -> ValidationResult a -> ValidationResult b
-andThen fn r =
-    case r of
+andThen fn validation =
+    case validation of
         Initial ->
             Initial
 
-        Valid a ->
-            fn a
+        Valid val ->
+            fn val
 
         Invalid msg input ->
             Invalid msg input
@@ -226,13 +226,13 @@ ValidationResult. See the example above.
 
 -}
 andMap : ValidationResult a -> ValidationResult (a -> b) -> ValidationResult b
-andMap r rFn =
-    case rFn of
+andMap validation validationFn =
+    case validationFn of
         Initial ->
             Initial
 
         Valid fn ->
-            map fn r
+            map fn validation
 
         Invalid msg input ->
             Invalid msg input
@@ -240,61 +240,61 @@ andMap r rFn =
 
 {-| Put a valid value into a ValidationResult.
 -}
-valid : a -> ValidationResult a
+valid : val -> ValidationResult val
 valid =
     Valid
 
 
 {-| Initialize a ValidationResult to the empty case (no input).
 -}
-initial : ValidationResult a
+initial : ValidationResult val
 initial =
     Initial
 
 
 {-| Extract the `Valid` value, or the given default
 -}
-withDefault : a -> ValidationResult a -> a
-withDefault a r =
-    case r of
-        Valid a_ ->
-            a_
+withDefault : val -> ValidationResult val -> val
+withDefault default validation =
+    case validation of
+        Valid val ->
+            val
 
         _ ->
-            a
+            default
 
 
 {-| Convert a `Maybe` into either `Initial` (if `Nothing`) or `Valid` (if `Just`)
 -}
-fromMaybeInitial : Maybe a -> ValidationResult a
-fromMaybeInitial m =
-    case m of
+fromMaybeInitial : Maybe val -> ValidationResult val
+fromMaybeInitial maybe =
+    case maybe of
         Nothing ->
             Initial
 
-        Just a ->
-            Valid a
+        Just val ->
+            Valid val
 
 
 {-| Convert a `Maybe` into either `Invalid`, with given message and input, or `Valid`.
 -}
-fromMaybe : String -> String -> Maybe a -> ValidationResult a
-fromMaybe msg input m =
-    case m of
+fromMaybe : String -> String -> Maybe val -> ValidationResult val
+fromMaybe msg input maybe =
+    case maybe of
         Nothing ->
             Invalid msg input
 
-        Just a ->
-            Valid a
+        Just val ->
+            Valid val
 
 
 {-| Convert a `ValidationResult` to a `Maybe`. Note `Invalid` state is dropped.
 -}
-toMaybe : ValidationResult a -> Maybe a
-toMaybe r =
-    case r of
-        Valid a ->
-            Just a
+toMaybe : ValidationResult val -> Maybe val
+toMaybe validation =
+    case validation of
+        Valid val ->
+            Just val
 
         _ ->
             Nothing
@@ -303,11 +303,11 @@ toMaybe r =
 {-| Convert a `Result` into either `Initial` (if `Err`) or `Valid` (if `Ok`).
 Note `Err` state is dropped.
 -}
-fromResultInitial : Result e a -> ValidationResult a
-fromResultInitial m =
-    case m of
-        Ok a ->
-            Valid a
+fromResultInitial : Result msg val -> ValidationResult val
+fromResultInitial result =
+    case result of
+        Ok val ->
+            Valid val
 
         Err _ ->
             Initial
@@ -322,14 +322,14 @@ a Result-returning function to `validate` &mdash; which calls `fromResult`
 internally.
 
 -}
-fromResult : (e -> String) -> String -> Result e a -> ValidationResult a
-fromResult fn input m =
-    case m of
-        Ok a ->
-            Valid a
+fromResult : (msg -> String) -> String -> Result msg val -> ValidationResult val
+fromResult fn input result =
+    case result of
+        Ok val ->
+            Valid val
 
-        Err e ->
-            Invalid (fn e) input
+        Err msg ->
+            Invalid (fn msg) input
 
 
 {-| Convert the ValidationResult to a String representation:
@@ -342,24 +342,24 @@ Note: this is mainly useful as a convenience function for setting the `value`
 attribute of an `Html.input` element.
 
 -}
-toString : (a -> String) -> ValidationResult a -> String
-toString fn r =
-    case r of
+toString : (val -> String) -> ValidationResult val -> String
+toString fn validation =
+    case validation of
         Initial ->
             ""
 
-        Valid a ->
-            fn a
+        Valid val ->
+            fn val
 
-        Invalid _ last ->
-            last
+        Invalid _ input ->
+            input
 
 
 {-| Extract the error message of an `Invalid`, or Nothing
 -}
-message : ValidationResult a -> Maybe String
-message r =
-    case r of
+message : ValidationResult val -> Maybe String
+message validation =
+    case validation of
         Invalid msg _ ->
             Just msg
 
@@ -370,9 +370,9 @@ message r =
 {-| Return True if and only if `Valid`. Note `Initial` -> `False`
 (`Initial` is not valid).
 -}
-isValid : ValidationResult a -> Bool
-isValid r =
-    case r of
+isValid : ValidationResult val -> Bool
+isValid validation =
+    case validation of
         Valid _ ->
             True
 
@@ -383,9 +383,9 @@ isValid r =
 {-| Return True if and only if `Invalid`. Note `Initial` -> `False`
 (`Initial` is not invalid).
 -}
-isInvalid : ValidationResult a -> Bool
-isInvalid r =
-    case r of
+isInvalid : ValidationResult val -> Bool
+isInvalid validation =
+    case validation of
         Invalid _ _ ->
             True
 
@@ -412,11 +412,11 @@ So a validation function for "integer less than 10" looks like:
                 )
 
 -}
-validate : (String -> Result String a) -> String -> ValidationResult a
+validate : (String -> Result String val) -> String -> ValidationResult val
 validate fn input =
     case fn input of
         Err msg ->
             Invalid msg input
 
-        Ok value ->
-            Valid value
+        Ok val ->
+            Valid val
