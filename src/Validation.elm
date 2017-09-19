@@ -1,33 +1,31 @@
 module Validation
     exposing
         ( ValidationResult(..)
+        , andMap
+        , andThen
+        , fromMaybe
+        , fromMaybeInitial
+        , fromResult
+        , fromResultInitial
+        , initial
+        , isInvalid
+        , isValid
         , map
         , mapMessage
-        , andThen
-        , andMap
-        , valid
-        , initial
-        , withDefault
-        , fromMaybeInitial
-        , fromMaybe
-        , toMaybe
-        , fromResultInitial
-        , fromResult
-        , toString
         , message
-        , isValid
-        , isInvalid
+        , toMaybe
+        , toString
+        , valid
         , validate
+        , withDefault
         )
 
-{-|
-
-A data type representing the validity and error state of data, for example
+{-| A data type representing the validity and error state of data, for example
 user-supplied input, with functions for combining results.
 
 There are various ways of using the tools this library provides. The recommended
 way is to _store ValidationResult state in your model_, in much the same way
-as you store [RemoteData][] in your model.
+as you store [RemoteData] in your model.
 
 This means your _form_ model is separate from the _underlying, validated
 data_ model, and you typically need to map the form into the validated model
@@ -40,6 +38,7 @@ somewhere in order to render it and report back to the user what the issues
 are. And the shape of the (possibly invalid) input data is _necessarily_ going
 to be different from the shape of valid data.
 
+
 ## A simple example
 
 Here's a simple example: a 'required' (String) input field, showing an
@@ -48,55 +47,60 @@ error message below the input field as the user types.
 First, define a form model with the field to be validated wrapped in a
 `ValidationResult`:
 
-``` elm
-type alias Model =
-    { input : ValidationResult String }
-```
+    type alias Model =
+        { input : ValidationResult String }
 
 In your view,
 
-  1. pipe input through a validation function and into your update;
-  2. set the value to either the validated or the last-entered input; and
-  3. display any error message below the input element.
+1.  pipe input through a validation function and into your update;
+2.  set the value to either the validated or the last-entered input; and
+3.  display any error message below the input element.
 
 ```
 view : Model -> Html Msg
 view form =
     -- ...
     div []
-      [ input 
-          [ type_ "text"
-          , value 
-              (form.input 
-                  |> Validation.toString identity
-              )  -- (2.)
-          , onInput 
-              (Validation.validate isRequired 
-                  >> SetInput
-              )  -- (1.)
-          ] []
-      , div 
-          [ class "error" ]
-          [ text 
-              (Validation.message form.input 
-                  |> Maybe.withDefault ""
-              )  -- (3.)
-          ]
-      ]
+        [ input
+            [ type_ "text"
+            , value
+                (form.input
+                    |> Validation.toString identity
+                )
+
+            -- (2.)
+            , onInput
+                (Validation.validate isRequired
+                    >> SetInput
+                )
+
+            -- (1.)
+            ]
+            []
+        , div
+            [ class "error" ]
+            [ text
+                (Validation.message form.input
+                    |> Maybe.withDefault ""
+                )
+
+            -- (3.)
+            ]
+        ]
 ```
+
 (Note: often you will want an `onBlur` event as well, but this is left as an
 exercise for the reader.)
 
 Your validation functions are defined as `a -> Result String a`:
 
-``` elm
-isRequired : String -> Result String String
-isRequired raw =
-  if String.length raw < 1 then
-    Err "Required"
-  else
-    Ok raw
-```
+    isRequired : String -> Result String String
+    isRequired raw =
+        if String.length raw < 1 then
+            Err "Required"
+        else
+            Ok raw
+
 
 ## Combining validation results
 
@@ -107,14 +111,14 @@ underlying model is updated, perhaps via a remote http call.
 This library provides `andMap`, which allows you to do this (assuming your
 form model is `Form`, and your underlying validated model is `Model`):
 
-```elm
-validateForm : Form -> ValidationResult Model
-validateForm form =
-    Validation.valid Model
-      |> Validation.andMap form.field1
-      |> Validation.andMap form.field2
-      --...
-```
+    validateForm : Form -> ValidationResult Model
+    validateForm form =
+        Validation.valid Model
+            |> Validation.andMap form.field1
+            |> Validation.andMap form.field2
+
+
+    --...
 
 Using such a function, you can `Validation.map` the result into encoded form
 and package it into an http call, etc.
@@ -124,7 +128,6 @@ Note that this library does not currently support accumulating validation errors
 the `andMap` example above is not intended to give you a list of errors in the
 `Invalid` case. Instead, it simply returns the first `Initial` or `Invalid` of the
 applied `ValidationResult`s.
-
 
 [RemoteData]: http://package.elm-lang.org/packages/krisajenkins/remotedata/latest
 
@@ -140,12 +143,14 @@ applied `ValidationResult`s.
 @docs andMap
 @docs mapMessage
 
+
 ## Extracting
 
 @docs withDefault
 @docs message
 @docs isValid
 @docs isInvalid
+
 
 ## Converting
 
@@ -160,9 +165,11 @@ applied `ValidationResult`s.
 
 
 {-| A wrapped value has three states:
+
   - `Initial` - No input yet.
-  - `Valid`   - Input is valid, and here is the valid (parsed) data.
+  - `Valid` - Input is valid, and here is the valid (parsed) data.
   - `Invalid` - Input is invalid, and here is the error message and your last input.
+
 -}
 type ValidationResult a
     = Initial
@@ -215,11 +222,11 @@ andThen fn r =
             fn a
 
 
-{-|
-Put the results of two ValidationResults together.
+{-| Put the results of two ValidationResults together.
 
 Useful for merging field ValidationResults into a single 'form'
 ValidationResult. See the example above.
+
 -}
 andMap : ValidationResult a -> ValidationResult (a -> b) -> ValidationResult b
 andMap r fn =
@@ -303,7 +310,7 @@ toMaybe r =
 
 
 {-| Convert a `Result` into either `Initial` (if `Err`) or `Valid` (if `Ok`).
-    Note `Err` state is dropped.
+Note `Err` state is dropped.
 -}
 fromResultInitial : Result e a -> ValidationResult a
 fromResultInitial m =
@@ -315,14 +322,14 @@ fromResultInitial m =
             Initial
 
 
-{-|
-Convert a `Result` into either `Invalid`, using given function mapping the `Err`
+{-| Convert a `Result` into either `Invalid`, using given function mapping the `Err`
 value to the error message (`String`), and the given input string; or `Valid`.
 
 Note: this function may be useful for unusual scenarios where you have a
 Result already and you need to convert it. More typically you would pass
 a Result-returning function to `validate` &mdash; which calls `fromResult`
 internally.
+
 -}
 fromResult : (e -> String) -> String -> Result e a -> ValidationResult a
 fromResult fn input m =
@@ -334,8 +341,7 @@ fromResult fn input m =
             Invalid (fn e) input
 
 
-{-|
-Convert the ValidationResult to a String representation:
+{-| Convert the ValidationResult to a String representation:
 
   - if Valid, convert the value to a string with the given function;
   - if Invalid, return the input (unvalidated) string;
@@ -343,6 +349,7 @@ Convert the ValidationResult to a String representation:
 
 Note: this is mainly useful as a convenience function for setting the `value`
 attribute of an `Html.input` element.
+
 -}
 toString : (a -> String) -> ValidationResult a -> String
 toString fn r =
@@ -372,8 +379,7 @@ message r =
             Just msg
 
 
-{-|
-Return True if and only if `Valid`. Note `Initial` -> `False`
+{-| Return True if and only if `Valid`. Note `Initial` -> `False`
 (`Initial` is not valid).
 -}
 isValid : ValidationResult a -> Bool
@@ -386,8 +392,7 @@ isValid r =
             False
 
 
-{-|
-Return True if and only if `Invalid`. Note `Initial` -> `False`
+{-| Return True if and only if `Invalid`. Note `Initial` -> `False`
 (`Initial` is not invalid).
 -}
 isInvalid : ValidationResult a -> Bool
@@ -403,23 +408,25 @@ isInvalid r =
             True
 
 
-{-|
-Run a validation function on an input string, to create a ValidationResult.
+{-| Run a validation function on an input string, to create a ValidationResult.
 
 Note the validation function you provide is `String -> Result String a`, where
 `a` is the type of the valid value.
 
 So a validation function for "integer less than 10" looks like:
 
-``` elm
-lessThanTen : String -> Result String Int
-lessThanTen input =
-    String.toInt input
-        |> Result.andThen
-            (\i -> if i < 10 then (Ok i) else (Err "Must be less than 10"))
-```
+    lessThanTen : String -> Result String Int
+    lessThanTen input =
+        String.toInt input
+            |> Result.andThen
+                (\i ->
+                    if i < 10 then
+                        Ok i
+                    else
+                        Err "Must be less than 10"
+                )
+
 -}
 validate : (String -> Result String a) -> String -> ValidationResult a
 validate fn input =
     fn input |> fromResult identity input
-
