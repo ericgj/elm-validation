@@ -185,11 +185,11 @@ map fn r =
         Initial ->
             Initial
 
-        Invalid msg input ->
-            Invalid msg input
-
         Valid a ->
             Valid (fn a)
+
+        Invalid msg input ->
+            Invalid msg input
 
 
 {-| Map over the error message value, producing a new ValidationResult
@@ -197,14 +197,11 @@ map fn r =
 mapMessage : (String -> String) -> ValidationResult a -> ValidationResult a
 mapMessage fn r =
     case r of
-        Initial ->
-            Initial
-
-        Valid a ->
-            Valid a
-
         Invalid msg input ->
             Invalid (fn msg) input
+
+        _ ->
+            r
 
 
 {-| Chain a function returning ValidationResult onto a ValidationResult
@@ -215,11 +212,11 @@ andThen fn r =
         Initial ->
             Initial
 
-        Invalid msg input ->
-            Invalid msg input
-
         Valid a ->
             fn a
+
+        Invalid msg input ->
+            Invalid msg input
 
 
 {-| Put the results of two ValidationResults together.
@@ -229,23 +226,23 @@ ValidationResult. See the example above.
 
 -}
 andMap : ValidationResult a -> ValidationResult (a -> b) -> ValidationResult b
-andMap r fn =
-    case r of
+andMap r rFn =
+    case rFn of
         Initial ->
             Initial
 
+        Valid fn ->
+            map fn r
+
         Invalid msg input ->
             Invalid msg input
-
-        Valid a ->
-            r |> andThen (\r_ -> fn |> andThen (\f_ -> Valid (f_ r_)))
 
 
 {-| Put a valid value into a ValidationResult.
 -}
 valid : a -> ValidationResult a
-valid a =
-    Valid a
+valid =
+    Valid
 
 
 {-| Initialize a ValidationResult to the empty case (no input).
@@ -260,14 +257,11 @@ initial =
 withDefault : a -> ValidationResult a -> a
 withDefault a r =
     case r of
-        Initial ->
-            a
-
-        Invalid msg input ->
-            a
-
         Valid a_ ->
             a_
+
+        _ ->
+            a
 
 
 {-| Convert a `Maybe` into either `Initial` (if `Nothing`) or `Valid` (if `Just`)
@@ -299,14 +293,11 @@ fromMaybe msg input m =
 toMaybe : ValidationResult a -> Maybe a
 toMaybe r =
     case r of
-        Initial ->
-            Nothing
-
-        Invalid msg input ->
-            Nothing
-
         Valid a ->
             Just a
+
+        _ ->
+            Nothing
 
 
 {-| Convert a `Result` into either `Initial` (if `Err`) or `Valid` (if `Ok`).
@@ -318,7 +309,7 @@ fromResultInitial m =
         Ok a ->
             Valid a
 
-        Err e ->
+        Err _ ->
             Initial
 
 
@@ -354,14 +345,14 @@ attribute of an `Html.input` element.
 toString : (a -> String) -> ValidationResult a -> String
 toString fn r =
     case r of
+        Initial ->
+            ""
+
         Valid a ->
             fn a
 
         Invalid _ last ->
             last
-
-        Initial ->
-            ""
 
 
 {-| Extract the error message of an `Invalid`, or Nothing
@@ -369,14 +360,11 @@ toString fn r =
 message : ValidationResult a -> Maybe String
 message r =
     case r of
-        Initial ->
-            Nothing
-
-        Valid _ ->
-            Nothing
-
         Invalid msg _ ->
             Just msg
+
+        _ ->
+            Nothing
 
 
 {-| Return True if and only if `Valid`. Note `Initial` -> `False`
@@ -398,14 +386,11 @@ isValid r =
 isInvalid : ValidationResult a -> Bool
 isInvalid r =
     case r of
-        Initial ->
-            False
-
-        Valid _ ->
-            False
-
-        Invalid msg last ->
+        Invalid _ _ ->
             True
+
+        _ ->
+            False
 
 
 {-| Run a validation function on an input string, to create a ValidationResult.
@@ -429,4 +414,9 @@ So a validation function for "integer less than 10" looks like:
 -}
 validate : (String -> Result String a) -> String -> ValidationResult a
 validate fn input =
-    fn input |> fromResult identity input
+    case fn input of
+        Err msg ->
+            Invalid msg input
+
+        Ok value ->
+            Valid value
