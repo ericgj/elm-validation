@@ -1,5 +1,5 @@
 {
-    "version": "1.0.0",
+    "version": "1.0.1",
     "summary": "Tools for validation, e.g. for form input",
     "repository": "https://github.com/ericgj/elm-validation.git",
     "license": "BSD3",
