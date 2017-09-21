@@ -24,18 +24,18 @@ module Validation
 user-supplied input, with functions for combining results.
 
 There are various ways of using the tools this library provides. The recommended
-way is to _store ValidationResult state in your model_, in much the same way
+way is to *store ValidationResult state in your model*, in much the same way
 as you store [RemoteData] in your model.
 
-This means your _form_ model is separate from the _underlying, validated
-data_ model, and you typically need to map the form into the validated model
+This means your *form* model is separate from the *underlying, validated
+data* model, and you typically need to map the form into the validated model
 (see example below).
 
 Although this may seem awkward or "too much boilerplate", particularly if
 your forms have many fields, it is not surprising. Unless you can prevent
-invalid input altogether, _as the user enters it_, you have to retain it
+invalid input altogether, *as the user enters it*, you have to retain it
 somewhere in order to render it and report back to the user what the issues
-are. And the shape of the (possibly invalid) input data is _necessarily_ going
+are. And the shape of the (possibly invalid) input data is *necessarily* going
 to be different from the shape of valid data.
 
 
@@ -56,38 +56,36 @@ In your view,
 2.  set the value to either the validated or the last-entered input; and
 3.  display any error message below the input element.
 
-```
-view : Model -> Html Msg
-view form =
-    -- ...
-    div []
-        [ input
-            [ type_ "text"
-            , value
-                (form.input
-                    |> Validation.toString identity
-                )
+    view : Model -> Html Msg
+    view form =
+        -- ...
+        div []
+            [ input
+                [ type_ "text"
+                , value
+                    (form.input
+                        |> Validation.toString identity
+                    )
 
-            -- (2.)
-            , onInput
-                (Validation.validate isRequired
-                    >> SetInput
-                )
+                -- (2.)
+                , onInput
+                    (Validation.validate isRequired
+                        >> SetInput
+                    )
 
-            -- (1.)
+                -- (1.)
+                ]
+                []
+            , div
+                [ class "error" ]
+                [ text
+                    (Validation.message form.input
+                        |> Maybe.withDefault ""
+                    )
+
+                -- (3.)
+                ]
             ]
-            []
-        , div
-            [ class "error" ]
-            [ text
-                (Validation.message form.input
-                    |> Maybe.withDefault ""
-                )
-
-            -- (3.)
-            ]
-        ]
-```
 
 (Note: often you will want an `onBlur` event as well, but this is left as an
 exercise for the reader.)
@@ -105,7 +103,7 @@ Your validation functions are defined as `a -> Result String a`:
 ## Combining validation results
 
 Typically, you want to combine validation results of several fields, such that
-if _all_ of the fields are valid, then their values are extracted and the
+if *all* of the fields are valid, then their values are extracted and the
 underlying model is updated, perhaps via a remote http call.
 
 This library provides `andMap`, which allows you to do this (assuming your
@@ -171,9 +169,9 @@ applied `ValidationResult`s.
   - `Invalid` - Input is invalid, and here is the error message and your last input.
 
 -}
-type ValidationResult val
+type ValidationResult value
     = Initial
-    | Valid val
+    | Valid value
     | Invalid String String
 
 
@@ -185,8 +183,8 @@ map fn validation =
         Initial ->
             Initial
 
-        Valid val ->
-            Valid (fn val)
+        Valid value ->
+            Valid (fn value)
 
         Invalid msg input ->
             Invalid msg input
@@ -212,8 +210,8 @@ andThen fn validation =
         Initial ->
             Initial
 
-        Valid val ->
-            fn val
+        Valid value ->
+            fn value
 
         Invalid msg input ->
             Invalid msg input
@@ -257,8 +255,8 @@ initial =
 withDefault : val -> ValidationResult val -> val
 withDefault default validation =
     case validation of
-        Valid val ->
-            val
+        Valid value ->
+            value
 
         _ ->
             default
@@ -272,8 +270,8 @@ fromMaybeInitial maybe =
         Nothing ->
             Initial
 
-        Just val ->
-            Valid val
+        Just value ->
+            Valid value
 
 
 {-| Convert a `Maybe` into either `Invalid`, with given message and input, or `Valid`.
@@ -284,8 +282,8 @@ fromMaybe msg input maybe =
         Nothing ->
             Invalid msg input
 
-        Just val ->
-            Valid val
+        Just value ->
+            Valid value
 
 
 {-| Convert a `ValidationResult` to a `Maybe`. Note `Invalid` state is dropped.
@@ -293,8 +291,8 @@ fromMaybe msg input maybe =
 toMaybe : ValidationResult val -> Maybe val
 toMaybe validation =
     case validation of
-        Valid val ->
-            Just val
+        Valid value ->
+            Just value
 
         _ ->
             Nothing
@@ -306,8 +304,8 @@ Note `Err` state is dropped.
 fromResultInitial : Result msg val -> ValidationResult val
 fromResultInitial result =
     case result of
-        Ok val ->
-            Valid val
+        Ok value ->
+            Valid value
 
         Err _ ->
             Initial
@@ -325,8 +323,8 @@ internally.
 fromResult : (msg -> String) -> String -> Result msg val -> ValidationResult val
 fromResult fn input result =
     case result of
-        Ok val ->
-            Valid val
+        Ok value ->
+            Valid value
 
         Err msg ->
             Invalid (fn msg) input
@@ -348,8 +346,8 @@ toString fn validation =
         Initial ->
             ""
 
-        Valid val ->
-            fn val
+        Valid value ->
+            fn value
 
         Invalid _ input ->
             input
@@ -418,5 +416,5 @@ validate fn input =
         Err msg ->
             Invalid msg input
 
-        Ok val ->
-            Valid val
+        Ok value ->
+            Valid value
