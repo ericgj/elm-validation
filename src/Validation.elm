@@ -52,13 +52,13 @@ In your view,
 2.  set the value to either the validated or the last-entered input; and
 3.  display any error message below the input element.
 
-
     view : Model -> Html Msg
     view form =
         -- ...
         div []
             [ input
                 [ type_ "text"
+
                 --------------------------- (2.)
                 , value
                     (form.input
@@ -70,7 +70,6 @@ In your view,
                     (Validation.validate isRequired
                         >> SetInput
                     )
-
                 ]
                 []
             , div
@@ -80,10 +79,8 @@ In your view,
                     (Validation.message form.input
                         |> Maybe.withDefault ""
                     )
-
                 ]
             ]
-
 
 Your validation functions are defined as `a -> Result String a`:
 
@@ -94,9 +91,9 @@ Your validation functions are defined as `a -> Result String a`:
         else
             Ok raw
 
-Often you will want to validate input when the input loses focus (`onBlur`), 
+Often you will want to validate input when the input loses focus (`onBlur`),
 instead of immediately (`onInput`). `ValidationResult` supports this with the
-`Unvalidated` state, which allows you to store input before validation (see 
+`Unvalidated` state, which allows you to store input before validation (see
 below, and [full example here][on-blur-example]).
 
 
@@ -115,18 +112,16 @@ form model is `Form`, and your underlying validated model is `Model`):
             |> Validation.andMap form.field1
             |> Validation.andMap form.field2
 
-
 Using such a function, you can `Validation.map` the result into encoded form
 and package it into an http call, etc.
 
 Note that this library does not currently support accumulating validation errors
 (e.g. multiple validations). The error message type is fixed as `String`. So
 the `andMap` example above is not intended to give you a list of errors in the
-`Invalid` case. Instead, it simply returns the first `Initial` or `Invalid` of 
+`Invalid` case. Instead, it simply returns the first `Initial` or `Invalid` of
 the applied `ValidationResult`s.
 
 For an approach that does accumulate validation errors, see [elm-verify].
-
 
 [RemoteData]: http://package.elm-lang.org/packages/krisajenkins/remotedata/latest
 
@@ -170,9 +165,10 @@ For an approach that does accumulate validation errors, see [elm-verify].
 -}
 
 
-{-| A wrapped value has three states:
+{-| A wrapped value has four states:
 
   - `Initial` - No input yet.
+  - `Unvalidated` - Input received but not yet validated, and here it is.
   - `Valid` - Input is valid, and here is the valid (parsed) data.
   - `Invalid` - Input is invalid, and here is the error message and your last input.
 
@@ -191,7 +187,7 @@ map fn validation =
     case validation of
         Initial ->
             Initial
-        
+
         Unvalidated input ->
             Unvalidated input
 
@@ -298,6 +294,7 @@ fromMaybeInitial maybe =
         Just value ->
             Valid value
 
+
 {-| Convert a `Maybe` into either `Unvalidated`, with given input, or `Valid`.
 -}
 fromMaybeUnvalidated : String -> Maybe val -> ValidationResult val
@@ -308,6 +305,7 @@ fromMaybeUnvalidated input maybe =
 
         Just value ->
             Valid value
+
 
 {-| Convert a `Maybe` into either `Invalid`, with given message and input, or `Valid`.
 -}
@@ -344,6 +342,7 @@ fromResultInitial result =
 
         Err _ ->
             Initial
+
 
 {-| Convert a `Result` into either `Unvalidated` (if `Err`) or `Valid` (if `Ok`).
 -}
@@ -415,7 +414,7 @@ message validation =
             Nothing
 
 
-{-| Return True if and only if `Valid`. Note `Initial` and `Unvalidated` 
+{-| Return True if and only if `Valid`. Note `Initial` and `Unvalidated`
 results are False.
 -}
 isValid : ValidationResult val -> Bool
@@ -428,7 +427,7 @@ isValid validation =
             False
 
 
-{-| Return True if and only if `Invalid`. Note `Initial` and `Unvalidated` 
+{-| Return True if and only if `Invalid`. Note `Initial` and `Unvalidated`
 results are False.
 -}
 isInvalid : ValidationResult val -> Bool
@@ -468,5 +467,3 @@ validate fn input =
 
         Ok value ->
             Valid value
-
-
