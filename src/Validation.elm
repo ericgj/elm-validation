@@ -5,9 +5,12 @@ module Validation
         , andThen
         , fromMaybe
         , fromMaybeInitial
+        , fromMaybeUnvalidated
         , fromResult
         , fromResultInitial
+        , fromResultUnvalidated
         , initial
+        , unvalidated
         , isInvalid
         , isValid
         , map
@@ -62,28 +65,28 @@ In your view,
         div []
             [ input
                 [ type_ "text"
+                --------------------------- (2.)
                 , value
                     (form.input
                         |> Validation.toString identity
                     )
 
-                -- (2.)
+                --------------------------- (1.)
                 , onInput
                     (Validation.validate isRequired
                         >> SetInput
                     )
 
-                -- (1.)
                 ]
                 []
             , div
                 [ class "error" ]
+                --------------------------- (3.)
                 [ text
                     (Validation.message form.input
                         |> Maybe.withDefault ""
                     )
 
-                -- (3.)
                 ]
             ]
 
@@ -136,6 +139,7 @@ applied `ValidationResult`s.
 @docs validate
 @docs valid
 @docs initial
+@docs unvalidated
 @docs map
 @docs andThen
 @docs andMap
@@ -152,11 +156,13 @@ applied `ValidationResult`s.
 
 ## Converting
 
-@docs fromMaybeInitial
 @docs fromMaybe
+@docs fromMaybeInitial
+@docs fromMaybeUnvalidated
 @docs toMaybe
-@docs fromResultInitial
 @docs fromResult
+@docs fromResultInitial
+@docs fromResultUnvalidated
 @docs toString
 
 -}
@@ -171,6 +177,7 @@ applied `ValidationResult`s.
 -}
 type ValidationResult value
     = Initial
+    | Unvalidated String
     | Valid value
     | Invalid String String
 
@@ -182,6 +189,9 @@ map fn validation =
     case validation of
         Initial ->
             Initial
+        
+        Unvalidated input ->
+            Unvalidated input
 
         Valid value ->
             Valid (fn value)
@@ -210,6 +220,9 @@ andThen fn validation =
         Initial ->
             Initial
 
+        Unvalidated input ->
+            Unvalidated input
+
         Valid value ->
             fn value
 
@@ -228,6 +241,9 @@ andMap validation validationFn =
     case validationFn of
         Initial ->
             Initial
+
+        Unvalidated input ->
+            Unvalidated input
 
         Valid fn ->
             map fn validation
@@ -248,6 +264,13 @@ valid =
 initial : ValidationResult val
 initial =
     Initial
+
+
+{-| Initialize a ValidationResult to unvalidated input.
+-}
+unvalidated : String -> ValidationResult val
+unvalidated =
+    Unvalidated
 
 
 {-| Extract the `Valid` value, or the given default
@@ -273,6 +296,16 @@ fromMaybeInitial maybe =
         Just value ->
             Valid value
 
+{-| Convert a `Maybe` into either `Unvalidated`, with given input, or `Valid`.
+-}
+fromMaybeUnvalidated : String -> Maybe val -> ValidationResult val
+fromMaybeUnvalidated input maybe =
+    case maybe of
+        Nothing ->
+            Unvalidated input
+
+        Just value ->
+            Valid value
 
 {-| Convert a `Maybe` into either `Invalid`, with given message and input, or `Valid`.
 -}
@@ -286,7 +319,7 @@ fromMaybe msg input maybe =
             Valid value
 
 
-{-| Convert a `ValidationResult` to a `Maybe`. Note `Invalid` state is dropped.
+{-| Convert a `ValidationResult` to a `Maybe`. Note `Invalid` and `Unvalidated` state is dropped.
 -}
 toMaybe : ValidationResult val -> Maybe val
 toMaybe validation =
@@ -309,6 +342,17 @@ fromResultInitial result =
 
         Err _ ->
             Initial
+
+{-| Convert a `Result` into either `Unvalidated` (if `Err`) or `Valid` (if `Ok`).
+-}
+fromResultUnvalidated : (msg -> String) -> Result msg val -> ValidationResult val
+fromResultUnvalidated fn result =
+    case result of
+        Ok value ->
+            Valid value
+
+        Err msg ->
+            Unvalidated (fn msg)
 
 
 {-| Convert a `Result` into either `Invalid`, using given function mapping the `Err`
@@ -333,6 +377,7 @@ fromResult fn input result =
 {-| Convert the ValidationResult to a String representation:
 
   - if Valid, convert the value to a string with the given function;
+  - if Unvalidated, return the input (unvalidated) string;
   - if Invalid, return the input (unvalidated) string;
   - if Initial, return the empty string ("").
 
@@ -345,6 +390,9 @@ toString fn validation =
     case validation of
         Initial ->
             ""
+
+        Unvalidated input ->
+            input
 
         Valid value ->
             fn value
@@ -378,8 +426,8 @@ isValid validation =
             False
 
 
-{-| Return True if and only if `Invalid`. Note `Initial` -> `False`
-(`Initial` is not invalid).
+{-| Return True if and only if `Invalid`. Note `Initial` and `Unvalidated` 
+results are False.
 -}
 isInvalid : ValidationResult val -> Bool
 isInvalid validation =
@@ -418,3 +466,4 @@ validate fn input =
 
         Ok value ->
             Valid value
+
