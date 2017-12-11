@@ -1,0 +1,79 @@
+<!DOCTYPE HTML>
+<html>
+
+<head>
+  <meta charset="UTF-8">
+  <title>Validation Examples</title>
+  <script type="text/javascript" src="onblur.js"></script>
+  <link rel="stylesheet" type="text/css" href="https://cdnjs.cloudflare.com/ajax/libs/normalize/4.2.0/normalize.min.css" />
+  <style type="text/css">
+     body {
+         box-sizing: border-box;
+         font: 16px/1.2 sans-serif;
+         margin: 2em;
+     }
+
+     .form {
+         display: flex;
+         flex-direction: row;
+     }
+
+     .form__field {
+         display: flex;
+         flex-direction: column;
+         flex-wrap: wrap;
+         margin: 0 1rem;
+     }
+
+     .form__error {
+         color: red;
+     }
+
+     .form__submit {
+         align-self: flex-end;
+     }
+
+     .form__field label {
+         font-weight: bold;
+     }
+
+     .form__field input {
+         height: 1.5rem;
+     }
+
+     .form__submit button {
+         height: 2rem;
+         min-width: 4rem;
+     }
+
+     .form__field > * {
+         display: block;
+         max-width: 200px;
+     }
+
+  </style>
+</head>
+
+<body>
+
+<h1>Validation examples</h1>
+<h2>Doing validation onBlur</h2>
+<p>
+In the form below, the Name and Date of Birth fields are validated when the
+fields lose focus. During input they are in an 'unvalidated' state. 
+</p>
+
+<p>(Note that the Tickets field is <i>also</i> validated immediately on input. 
+This feels more natural for a numeric "spinner" input.)  
+</p>
+
+<div id="onblur"></div>
+
+</body>
+
+<script type="text/javascript">
+  Elm.OnBlur.embed( document.getElementById("onblur") );
+</script>
+
+
+</html>
