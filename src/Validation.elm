@@ -30,16 +30,9 @@ There are various ways of using the tools this library provides. The recommended
 way is to *store ValidationResult state in your model*, in much the same way
 as you store [RemoteData] in your model.
 
-This means your *form* model is separate from the *underlying, validated
-data* model, and you typically need to map the form into the validated model
-(see example below).
-
-Although this may seem awkward or "too much boilerplate", particularly if
-your forms have many fields, it is not surprising. Unless you can prevent
-invalid input altogether, *as the user enters it*, you have to retain it
-somewhere in order to render it and report back to the user what the issues
-are. And the shape of the (possibly invalid) input data is *necessarily* going
-to be different from the shape of valid data.
+This means your *form* model is separate from the *validated data* model,
+and you typically need to map the form into the validated model (see example
+below).
 
 
 ## A simple example
@@ -58,6 +51,7 @@ In your view,
 1.  pipe input through a validation function and into your update;
 2.  set the value to either the validated or the last-entered input; and
 3.  display any error message below the input element.
+
 
     view : Model -> Html Msg
     view form =
@@ -90,8 +84,6 @@ In your view,
                 ]
             ]
 
-(Note: often you will want an `onBlur` event as well, but this is left as an
-exercise for the reader.)
 
 Your validation functions are defined as `a -> Result String a`:
 
@@ -101,6 +93,11 @@ Your validation functions are defined as `a -> Result String a`:
             Err "Required"
         else
             Ok raw
+
+Often you will want to validate input when the input loses focus (`onBlur`), 
+instead of immediately (`onInput`). `ValidationResult` supports this with the
+`Unvalidated` state, which allows you to store input before validation (see 
+below, and [full example here][on-blur-example]).
 
 
 ## Combining validation results
@@ -119,18 +116,23 @@ form model is `Form`, and your underlying validated model is `Model`):
             |> Validation.andMap form.field2
 
 
-    --...
-
 Using such a function, you can `Validation.map` the result into encoded form
 and package it into an http call, etc.
 
 Note that this library does not currently support accumulating validation errors
 (e.g. multiple validations). The error message type is fixed as `String`. So
 the `andMap` example above is not intended to give you a list of errors in the
-`Invalid` case. Instead, it simply returns the first `Initial` or `Invalid` of the
-applied `ValidationResult`s.
+`Invalid` case. Instead, it simply returns the first `Initial` or `Invalid` of 
+the applied `ValidationResult`s.
+
+For an approach that does accumulate validation errors, see [elm-verify].
+
 
 [RemoteData]: http://package.elm-lang.org/packages/krisajenkins/remotedata/latest
+
+[elm-verify]: http://package.elm-lang.org/packages/stoeffel/elm-verify/latest
+
+[on-blur-example]: https://github.com/ericgj/elm-validation/blob/master/example/OnBlur.elm
 
 
 ## Basics
@@ -413,8 +415,8 @@ message validation =
             Nothing
 
 
-{-| Return True if and only if `Valid`. Note `Initial` -> `False`
-(`Initial` is not valid).
+{-| Return True if and only if `Valid`. Note `Initial` and `Unvalidated` 
+results are False.
 -}
 isValid : ValidationResult val -> Bool
 isValid validation =
@@ -466,4 +468,5 @@ validate fn input =
 
         Ok value ->
             Valid value
+
 
