@@ -1,42 +1,37 @@
-module Validation
-    exposing
-        ( ValidationResult(..)
-        , andMap
-        , andThen
-        , fromMaybe
-        , fromMaybeInitial
-        , fromResult
-        , fromResultInitial
-        , initial
-        , isInvalid
-        , isValid
-        , map
-        , mapMessage
-        , message
-        , toMaybe
-        , toString
-        , valid
-        , validate
-        , withDefault
-        )
+module Validation exposing
+    ( ValidationResult(..)
+    , validate
+    , valid
+    , initial
+    , unvalidated
+    , map
+    , andThen
+    , andMap
+    , mapMessage
+    , withDefault
+    , message
+    , isValid
+    , isInvalid
+    , fromMaybe
+    , fromMaybeInitial
+    , fromMaybeUnvalidated
+    , toMaybe
+    , fromResult
+    , fromResultInitial
+    , fromResultUnvalidated
+    , toString
+    )
 
 {-| A data type representing the validity and error state of data, for example
 user-supplied input, with functions for combining results.
 
 There are various ways of using the tools this library provides. The recommended
-way is to *store ValidationResult state in your model*, in much the same way
+way is to _store ValidationResult state in your model_, in much the same way
 as you store [RemoteData] in your model.
 
-This means your *form* model is separate from the *underlying, validated
-data* model, and you typically need to map the form into the validated model
-(see example below).
-
-Although this may seem awkward or "too much boilerplate", particularly if
-your forms have many fields, it is not surprising. Unless you can prevent
-invalid input altogether, *as the user enters it*, you have to retain it
-somewhere in order to render it and report back to the user what the issues
-are. And the shape of the (possibly invalid) input data is *necessarily* going
-to be different from the shape of valid data.
+This means your _form_ model is separate from the _validated data_ model,
+and you typically need to map the form into the validated model (see example
+below).
 
 
 ## A simple example
@@ -53,42 +48,40 @@ First, define a form model with the field to be validated wrapped in a
 In your view,
 
 1.  pipe input through a validation function and into your update;
+
 2.  set the value to either the validated or the last-entered input; and
+
 3.  display any error message below the input element.
 
     view : Model -> Html Msg
     view form =
-        -- ...
-        div []
-            [ input
-                [ type_ "text"
+    -- ...
+    div []
+    [ input
+    [ type\_ "text"
+
+                --------------------------- (2.)
                 , value
                     (form.input
                         |> Validation.toString identity
                     )
 
-                -- (2.)
+                --------------------------- (1.)
                 , onInput
                     (Validation.validate isRequired
                         >> SetInput
                     )
-
-                -- (1.)
                 ]
                 []
             , div
                 [ class "error" ]
+                --------------------------- (3.)
                 [ text
                     (Validation.message form.input
                         |> Maybe.withDefault ""
                     )
-
-                -- (3.)
                 ]
             ]
-
-(Note: often you will want an `onBlur` event as well, but this is left as an
-exercise for the reader.)
 
 Your validation functions are defined as `a -> Result String a`:
 
@@ -96,14 +89,23 @@ Your validation functions are defined as `a -> Result String a`:
     isRequired raw =
         if String.length raw < 1 then
             Err "Required"
+
         else
             Ok raw
+
+Often you will want to validate input when the input loses focus (`onBlur`),
+instead of immediately (`onInput`). `ValidationResult` supports this with the
+`Unvalidated` state, which allows you to store input before validation (see
+below, and [full example here][on-blur-example]).
+
+Also note if you do validate `onInput` as above, in most cases you should _also_
+validate `onBlur` if the field is required.
 
 
 ## Combining validation results
 
 Typically, you want to combine validation results of several fields, such that
-if *all* of the fields are valid, then their values are extracted and the
+if _all_ of the fields are valid, then their values are extracted and the
 underlying model is updated, perhaps via a remote http call.
 
 This library provides `andMap`, which allows you to do this (assuming your
@@ -115,19 +117,22 @@ form model is `Form`, and your underlying validated model is `Model`):
             |> Validation.andMap form.field1
             |> Validation.andMap form.field2
 
-
-    --...
-
 Using such a function, you can `Validation.map` the result into encoded form
 and package it into an http call, etc.
 
 Note that this library does not currently support accumulating validation errors
 (e.g. multiple validations). The error message type is fixed as `String`. So
 the `andMap` example above is not intended to give you a list of errors in the
-`Invalid` case. Instead, it simply returns the first `Initial` or `Invalid` of the
-applied `ValidationResult`s.
+`Invalid` case. Instead, it simply returns the first `Initial` or `Invalid` of
+the applied `ValidationResult`s.
+
+For an approach that does accumulate validation errors, see [elm-verify].
 
 [RemoteData]: http://package.elm-lang.org/packages/krisajenkins/remotedata/latest
+
+[elm-verify]: http://package.elm-lang.org/packages/stoeffel/elm-verify/latest
+
+[on-blur-example]: https://github.com/ericgj/elm-validation/blob/master/example/OnBlur.elm
 
 
 ## Basics
@@ -136,6 +141,7 @@ applied `ValidationResult`s.
 @docs validate
 @docs valid
 @docs initial
+@docs unvalidated
 @docs map
 @docs andThen
 @docs andMap
@@ -152,25 +158,29 @@ applied `ValidationResult`s.
 
 ## Converting
 
-@docs fromMaybeInitial
 @docs fromMaybe
+@docs fromMaybeInitial
+@docs fromMaybeUnvalidated
 @docs toMaybe
-@docs fromResultInitial
 @docs fromResult
+@docs fromResultInitial
+@docs fromResultUnvalidated
 @docs toString
 
 -}
 
 
-{-| A wrapped value has three states:
+{-| A wrapped value has four states:
 
   - `Initial` - No input yet.
+  - `Unvalidated` - Input received but not yet validated, and here it is.
   - `Valid` - Input is valid, and here is the valid (parsed) data.
   - `Invalid` - Input is invalid, and here is the error message and your last input.
 
 -}
 type ValidationResult value
     = Initial
+    | Unvalidated String
     | Valid value
     | Invalid String String
 
@@ -182,6 +192,9 @@ map fn validation =
     case validation of
         Initial ->
             Initial
+
+        Unvalidated input ->
+            Unvalidated input
 
         Valid value ->
             Valid (fn value)
@@ -210,6 +223,9 @@ andThen fn validation =
         Initial ->
             Initial
 
+        Unvalidated input ->
+            Unvalidated input
+
         Valid value ->
             fn value
 
@@ -228,6 +244,9 @@ andMap validation validationFn =
     case validationFn of
         Initial ->
             Initial
+
+        Unvalidated input ->
+            Unvalidated input
 
         Valid fn ->
             map fn validation
@@ -248,6 +267,13 @@ valid =
 initial : ValidationResult val
 initial =
     Initial
+
+
+{-| Initialize a ValidationResult to unvalidated input.
+-}
+unvalidated : String -> ValidationResult val
+unvalidated =
+    Unvalidated
 
 
 {-| Extract the `Valid` value, or the given default
@@ -274,6 +300,18 @@ fromMaybeInitial maybe =
             Valid value
 
 
+{-| Convert a `Maybe` into either `Unvalidated`, with given input, or `Valid`.
+-}
+fromMaybeUnvalidated : String -> Maybe val -> ValidationResult val
+fromMaybeUnvalidated input maybe =
+    case maybe of
+        Nothing ->
+            Unvalidated input
+
+        Just value ->
+            Valid value
+
+
 {-| Convert a `Maybe` into either `Invalid`, with given message and input, or `Valid`.
 -}
 fromMaybe : String -> String -> Maybe val -> ValidationResult val
@@ -286,7 +324,7 @@ fromMaybe msg input maybe =
             Valid value
 
 
-{-| Convert a `ValidationResult` to a `Maybe`. Note `Invalid` state is dropped.
+{-| Convert a `ValidationResult` to a `Maybe`. Note `Invalid` and `Unvalidated` state is dropped.
 -}
 toMaybe : ValidationResult val -> Maybe val
 toMaybe validation =
@@ -311,6 +349,18 @@ fromResultInitial result =
             Initial
 
 
+{-| Convert a `Result` into either `Unvalidated` (if `Err`) or `Valid` (if `Ok`).
+-}
+fromResultUnvalidated : (msg -> String) -> Result msg val -> ValidationResult val
+fromResultUnvalidated fn result =
+    case result of
+        Ok value ->
+            Valid value
+
+        Err msg ->
+            Unvalidated (fn msg)
+
+
 {-| Convert a `Result` into either `Invalid`, using given function mapping the `Err`
 value to the error message (`String`), and the given input string; or `Valid`.
 
@@ -333,6 +383,7 @@ fromResult fn input result =
 {-| Convert the ValidationResult to a String representation:
 
   - if Valid, convert the value to a string with the given function;
+  - if Unvalidated, return the input (unvalidated) string;
   - if Invalid, return the input (unvalidated) string;
   - if Initial, return the empty string ("").
 
@@ -345,6 +396,9 @@ toString fn validation =
     case validation of
         Initial ->
             ""
+
+        Unvalidated input ->
+            input
 
         Valid value ->
             fn value
@@ -365,8 +419,8 @@ message validation =
             Nothing
 
 
-{-| Return True if and only if `Valid`. Note `Initial` -> `False`
-(`Initial` is not valid).
+{-| Return True if and only if `Valid`. Note `Initial` and `Unvalidated`
+results are False.
 -}
 isValid : ValidationResult val -> Bool
 isValid validation =
@@ -378,8 +432,8 @@ isValid validation =
             False
 
 
-{-| Return True if and only if `Invalid`. Note `Initial` -> `False`
-(`Initial` is not invalid).
+{-| Return True if and only if `Invalid`. Note `Initial` and `Unvalidated`
+results are False.
 -}
 isInvalid : ValidationResult val -> Bool
 isInvalid validation =
@@ -405,6 +459,7 @@ So a validation function for "integer less than 10" looks like:
                 (\i ->
                     if i < 10 then
                         Ok i
+
                     else
                         Err "Must be less than 10"
                 )
