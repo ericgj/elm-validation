@@ -1,16 +1,17 @@
 module OnBlur exposing (main)
 
-import Json.Decode as Json
+import Browser
 import Html exposing (..)
 import Html.Attributes exposing (..)
-import Html.Events exposing (on, onInput, onClick, targetValue)
+import Html.Events exposing (on, onClick, onInput, targetValue)
+import Json.Decode as Json
 import Validation exposing (ValidationResult)
 
 
-main : Program Never Form Msg
+main : Program () Form Msg
 main =
-    beginnerProgram
-        { model = init
+    Browser.sandbox
+        { init = init
         , view = view
         , update = update
         }
@@ -71,7 +72,7 @@ update msg form =
                 _ =
                     Debug.log "Success!" model
             in
-                form
+            form
 
 
 view : Form -> Html Msg
@@ -93,78 +94,82 @@ view form =
                 |> Validation.andMap form.birthdate
                 |> Validation.andMap form.tickets
     in
-        div [ class "form" ]
-            [ div [ class "form__field" ]
-                [ label [ for "name" ] [ text "Name" ]
-                , input
-                    [ type_ "text"
-                    , name "name"
-                    , style (validInputStyle form.name)
-                    , onInput (Validation.unvalidated >> SetName)
-                    , onBlur (nameValid >> SetName)
-                    ]
-                    []
-                , div [ class "form__error" ]
-                    [ text
-                        (Validation.message form.name
-                            |> Maybe.withDefault ""
-                        )
-                    ]
-                ]
-            , div [ class "form__field" ]
-                [ label [ for "birthdate" ] [ text "Date of birth" ]
-                , input
-                    [ type_ "date"
-                    , name "birthdate"
-                    , style (validInputStyle form.birthdate)
-                    , onInput (Validation.unvalidated >> SetBirthdate)
-                    , onBlur (birthdateValid >> SetBirthdate)
-                    ]
-                    []
-                , div [ class "form__error" ]
-                    [ text
-                        (Validation.message form.birthdate
-                            |> Maybe.withDefault ""
-                        )
-                    ]
-                ]
-            , div [ class "form__field" ]
-                [ label [ for "tickets" ] [ text "# Tickets" ]
-                , input
-                    [ type_ "number"
-                    , name "tickets"
-                    , style (validInputStyle form.tickets)
-                    , Html.Attributes.min "1"
-                    , Html.Attributes.max "99"
-                    , Html.Attributes.step "1"
-                    , disabled (not <| Validation.isValid form.birthdate)
-                    , onInput (ticketsValid >> SetTickets)
-                    , onBlur (ticketsValid >> SetTickets)
-                    ]
-                    []
-                , div [ class "form__error" ]
-                    [ text
-                        (Validation.message form.tickets
-                            |> Maybe.withDefault ""
-                        )
-                    ]
-                ]
-            , div [ class "form__submit" ]
-                (case formState of
-                    Validation.Valid model ->
-                        [ button [ onClick (Submit model) ] [ text "Save" ]
-                        ]
-
-                    _ ->
-                        []
+    div [ class "form" ]
+        [ div [ class "form__field" ]
+            [ label [ for "name" ] [ text "Name" ]
+            , input
+                ([ type_ "text"
+                 , name "name"
+                 , onInput (Validation.unvalidated >> SetName)
+                 , onBlur (nameValid >> SetName)
+                 ]
+                    ++ validInputStyle form.name
                 )
+                []
+            , div [ class "form__error" ]
+                [ text
+                    (Validation.message form.name
+                        |> Maybe.withDefault ""
+                    )
+                ]
             ]
+        , div [ class "form__field" ]
+            [ label [ for "birthdate" ] [ text "Date of birth" ]
+            , input
+                ([ type_ "date"
+                 , name "birthdate"
+                 , onInput (Validation.unvalidated >> SetBirthdate)
+                 , onBlur (birthdateValid >> SetBirthdate)
+                 ]
+                    ++ validInputStyle form.birthdate
+                )
+                []
+            , div [ class "form__error" ]
+                [ text
+                    (Validation.message form.birthdate
+                        |> Maybe.withDefault ""
+                    )
+                ]
+            ]
+        , div [ class "form__field" ]
+            [ label [ for "tickets" ] [ text "# Tickets" ]
+            , input
+                ([ type_ "number"
+                 , name "tickets"
+                 , Html.Attributes.min "1"
+                 , Html.Attributes.max "99"
+                 , Html.Attributes.step "1"
+                 , disabled (not <| Validation.isValid form.birthdate)
+                 , onInput (ticketsValid >> SetTickets)
+                 , onBlur (ticketsValid >> SetTickets)
+                 ]
+                    ++ validInputStyle form.tickets
+                )
+                []
+            , div [ class "form__error" ]
+                [ text
+                    (Validation.message form.tickets
+                        |> Maybe.withDefault ""
+                    )
+                ]
+            ]
+        , div [ class "form__submit" ]
+            (case formState of
+                Validation.Valid model ->
+                    [ button [ onClick (Submit model) ] [ text "Save" ]
+                    ]
+
+                _ ->
+                    []
+            )
+        ]
 
 
-validInputStyle : ValidationResult x -> List ( String, String )
+validInputStyle : ValidationResult x -> List (Attribute msg)
 validInputStyle result =
     if Validation.isInvalid result then
-        [ ( "background-color", "pink" ) ]
+        [ style "background-color" "pink" ]
+
     else
         []
 
@@ -173,6 +178,7 @@ isRequired : String -> Result String String
 isRequired raw =
     if String.length raw < 1 then
         Err "Required"
+
     else
         Ok raw
 
@@ -191,8 +197,10 @@ isValidBirthdateHelp : Date -> Result String Date
 isValidBirthdateHelp ((Date { year, month, day }) as date) =
     if (2017 - year) >= 100 || (year >= 2017) then
         Err "Check the year"
+
     else if (2017 - year) >= 12 then
         Ok date
+
     else
         Err "Sorry, you have to be at least 12 years old to ride"
 
@@ -204,17 +212,17 @@ isValidDate raw =
             case parts of
                 year :: month :: day :: [] ->
                     Result.map3 ymd
-                        (String.toInt year)
-                        (String.toInt month)
-                        (String.toInt day)
+                        (stringToIntResult year)
+                        (stringToIntResult month)
+                        (stringToIntResult day)
 
                 _ ->
                     Err "Invalid date format"
     in
-        raw
-            |> isRequired
-            |> Result.map (String.split "-")
-            |> Result.andThen validParts
+    raw
+        |> isRequired
+        |> Result.map (String.split "-")
+        |> Result.andThen validParts
 
 
 isValidTickets : Maybe Date -> String -> Result String Int
@@ -226,7 +234,7 @@ isValidTickets birthdate raw =
         Just date ->
             raw
                 |> isRequired
-                |> Result.andThen String.toInt
+                |> Result.andThen stringToIntResult
                 |> Result.andThen (isValidTicketsHelp date)
 
 
@@ -240,12 +248,20 @@ isValidTicketsHelp : Date -> Int -> Result String Int
 isValidTicketsHelp (Date { year }) tickets =
     if tickets < 1 then
         Err "You have to order at least one ticket"
+
     else if tickets > 99 then
         Err "You ordered too many tickets"
+
     else if (2017 - year) < 20 && (tickets > 1) then
         Err "You have to be at least 20 years old to buy more than one ticket"
+
     else
         Ok tickets
+
+
+stringToIntResult : String -> Result String Int
+stringToIntResult =
+    String.toInt >> Result.fromMaybe "Not a number"
 
 
 onBlur : (String -> msg) -> Html.Attribute msg

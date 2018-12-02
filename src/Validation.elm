@@ -1,36 +1,35 @@
-module Validation
-    exposing
-        ( ValidationResult(..)
-        , andMap
-        , andThen
-        , fromMaybe
-        , fromMaybeInitial
-        , fromMaybeUnvalidated
-        , fromResult
-        , fromResultInitial
-        , fromResultUnvalidated
-        , initial
-        , unvalidated
-        , isInvalid
-        , isValid
-        , map
-        , mapMessage
-        , message
-        , toMaybe
-        , toString
-        , valid
-        , validate
-        , withDefault
-        )
+module Validation exposing
+    ( ValidationResult(..)
+    , validate
+    , valid
+    , initial
+    , unvalidated
+    , map
+    , andThen
+    , andMap
+    , mapMessage
+    , withDefault
+    , message
+    , isValid
+    , isInvalid
+    , fromMaybe
+    , fromMaybeInitial
+    , fromMaybeUnvalidated
+    , toMaybe
+    , fromResult
+    , fromResultInitial
+    , fromResultUnvalidated
+    , toString
+    )
 
 {-| A data type representing the validity and error state of data, for example
 user-supplied input, with functions for combining results.
 
 There are various ways of using the tools this library provides. The recommended
-way is to *store ValidationResult state in your model*, in much the same way
+way is to _store ValidationResult state in your model_, in much the same way
 as you store [RemoteData] in your model.
 
-This means your *form* model is separate from the *validated data* model,
+This means your _form_ model is separate from the _validated data_ model,
 and you typically need to map the form into the validated model (see example
 below).
 
@@ -49,15 +48,17 @@ First, define a form model with the field to be validated wrapped in a
 In your view,
 
 1.  pipe input through a validation function and into your update;
+
 2.  set the value to either the validated or the last-entered input; and
+
 3.  display any error message below the input element.
 
     view : Model -> Html Msg
     view form =
-        -- ...
-        div []
-            [ input
-                [ type_ "text"
+    -- ...
+    div []
+    [ input
+    [ type\_ "text"
 
                 --------------------------- (2.)
                 , value
@@ -88,6 +89,7 @@ Your validation functions are defined as `a -> Result String a`:
     isRequired raw =
         if String.length raw < 1 then
             Err "Required"
+
         else
             Ok raw
 
@@ -96,14 +98,14 @@ instead of immediately (`onInput`). `ValidationResult` supports this with the
 `Unvalidated` state, which allows you to store input before validation (see
 below, and [full example here][on-blur-example]).
 
-Also note if you do validate `onInput` as above, in most cases you should _also_ 
+Also note if you do validate `onInput` as above, in most cases you should _also_
 validate `onBlur` if the field is required.
 
 
 ## Combining validation results
 
 Typically, you want to combine validation results of several fields, such that
-if *all* of the fields are valid, then their values are extracted and the
+if _all_ of the fields are valid, then their values are extracted and the
 underlying model is updated, perhaps via a remote http call.
 
 This library provides `andMap`, which allows you to do this (assuming your
@@ -457,6 +459,7 @@ So a validation function for "integer less than 10" looks like:
                 (\i ->
                     if i < 10 then
                         Ok i
+
                     else
                         Err "Must be less than 10"
                 )
