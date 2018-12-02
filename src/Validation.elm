@@ -96,6 +96,9 @@ instead of immediately (`onInput`). `ValidationResult` supports this with the
 `Unvalidated` state, which allows you to store input before validation (see
 below, and [full example here][on-blur-example]).
 
+Also note if you do validate `onInput` as above, in most cases you should _also_ 
+validate `onBlur` if the field is required.
+
 
 ## Combining validation results
 
