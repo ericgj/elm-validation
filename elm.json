@@ -3,7 +3,7 @@
     "name": "ericgj/elm-validation",
     "summary": "Tools for validation, e.g. for form input",
     "license": "BSD-3-Clause",
-    "version": "1.0.1",
+    "version": "2.0.0",
     "exposed-modules": [
         "Validation"
     ],
