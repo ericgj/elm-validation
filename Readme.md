@@ -5,7 +5,7 @@ Tools for managing validity and error state of data, e.g. from user input.
 ## To install
 
 ```
-$ elm package install ericgj/elm-validation
+$ elm install ericgj/elm-validation
 ```
 
 ## Documentation
