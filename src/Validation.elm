@@ -55,27 +55,21 @@ In your view,
 
     view : Model -> Html Msg
     view form =
-    -- ...
-    div []
-    [ input
-    [ type\_ "text"
-
-                --------------------------- (2.)
-                , value
+        div []
+            [ input
+                [ type_ "text"
+                , value      -- (2.)
                     (form.input
                         |> Validation.toString identity
                     )
-
-                --------------------------- (1.)
-                , onInput
+                , onInput    -- (1.)
                     (Validation.validate isRequired
                         >> SetInput
                     )
                 ]
                 []
-            , div
+            , div            -- (3.)
                 [ class "error" ]
-                --------------------------- (3.)
                 [ text
                     (Validation.message form.input
                         |> Maybe.withDefault ""
